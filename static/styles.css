@@ -1,0 +1,71 @@
+body {
+    font-family: 'Open Sans', sans-serif; /* Modern font */
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f6ff; /* Light blue background */
+  }
+  
+  .container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #fff;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  h1 {
+    margin-bottom: 30px;
+    color: #007bff; /* Primary blue color */
+    font-size: 2.5rem;
+    text-align: center;
+  }
+  
+  button {
+    padding: 15px 30px;
+    font-size: 18px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 10px;
+    background-color: #007bff; /* Primary blue color */
+    color: #fff;
+    transition: background-color 0.3s ease;
+  }
+  
+  button:hover {
+    background-color: #0062cc; /* Darker blue on hover */
+  }
+  
+  /* Optional: Add a subtle gradient to buttons for a more modern look */
+  button {
+    background-image: linear-gradient(to bottom right, #007bff, #0062cc);
+  }
+  
+  /* Optional: Add a subtle box shadow to buttons */
+  button {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Optional: Style input fields */
+  input[type="text"] {
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    width: 250px;
+  }
+  
+  /* Optional: Add a simple animation for the loading state (if applicable) */
+  .loading {
+    animation: spin 1s infinite linear;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }

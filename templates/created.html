@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Host Meeting</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='meeting.js') }}" defer></script>
+</head>
+<body>
+    <h1>Host Meeting</h1>
+    <div class="container">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <button id="startMeetingBtn">Start Meeting</button>
+    </div>
+</body>
+</html>
