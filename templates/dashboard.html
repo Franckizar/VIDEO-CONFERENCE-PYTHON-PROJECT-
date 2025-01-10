@@ -1,2 +1,27 @@
-<h1>Welcome, {{ user.username }}</h1>
-<a href="{{ url_for('logout') }}">Logout</a>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Video Call</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='stylesdash.css') }}">
+    
+</head>
+<body>
+    <div class="header">
+        <h1>Welcome, {{ current_user.username }}!</h1>
+        <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+    </div>
+
+    <div class="container">
+        <div class="welcome-message">
+            <p>Ready to start or join a video meeting? Choose an option below:</p>
+        </div>
+        
+        <div class="button-container">
+            <button onclick="window.location.href='{{ url_for('created') }}'" class="create-btn">Create Meeting</button>
+            <button onclick="window.location.href='{{ url_for('join') }}'" class="join-btn">Join Meeting</button>
+        </div>
+    </div>
+</body>
+</html>

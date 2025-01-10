@@ -16,6 +16,9 @@ class User(db.Model, UserMixin):
     meetings_hosted = db.relationship('Meeting', backref='host', lazy=True)
     reports = db.relationship('Report', backref='user', lazy=True)
 
+    def get_id(self):
+        return str(self.user_id)  # Convert to string as Flask-Login expects string
+
     def set_password(self, password):
         self.password = bcrypt.generate_password_hash(password).decode('utf-8')
 
