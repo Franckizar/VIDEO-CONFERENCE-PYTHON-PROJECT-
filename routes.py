@@ -1,7 +1,11 @@
-from flask import render_template, redirect, url_for, flash, request, jsonify
+from flask import Response, jsonify, render_template, request, flash, redirect, url_for
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db
 from models import User
+import cv2
+
+# Initialize OpenCV Video Capture
+camera = cv2.VideoCapture(0)  # Default webcam
 
 # In-memory storage for signaling data
 signaling_data = {
@@ -9,6 +13,17 @@ signaling_data = {
     "answer": None,
     "candidates": []
 }
+
+def generate_frames():
+    while True:
+        success, frame = camera.read()
+        if not success:
+            break
+        else:
+            _, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 # WebRTC Routes
 @app.route('/')
@@ -22,6 +37,10 @@ def created():
 @app.route('/join')
 def join():
     return render_template('join.html')
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/getOffer', methods=['GET'])
 def get_offer():
@@ -53,58 +72,3 @@ def signal():
 @app.route('/getCandidates', methods=['GET'])
 def get_candidates():
     return jsonify(signaling_data["candidates"])
-
-# Authentication Routes
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
-        role = request.form['role']
-
-        # Create user
-        user = User(username=username, email=email, role=role)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        flash('Registration successful! You can now log in.')
-        return redirect(url_for('login'))
-    return render_template('register.html')
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
-        print(f"Login attempt with email: {email}")  # Debug log
-        
-        user = User.query.filter_by(email=email).first()
-        if user:
-            print(f"User found: {user.username}")  # Debug log
-            if user.check_password(password):
-                print("Password check passed")  # Debug log
-                login_user(user)
-                print(f"User logged in successfully: {current_user.is_authenticated}")  # Debug log
-                flash('Login successful!')
-                return redirect(url_for('dashboard'))
-            else:
-                print("Password check failed")  # Debug log
-                flash('Invalid password')
-        else:
-            print("No user found with this email")  # Debug log
-            flash('Invalid email')
-    return render_template('login.html')
-
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    print(f"Accessing dashboard. User authenticated: {current_user.is_authenticated}")  # Debug log
-    return render_template('dashboard.html', user=current_user)
-
-@app.route('/logout')
-@login_required
-def logout():
-    logout_user()
-    flash('You have been logged out.')
-    return redirect(url_for('login'))
