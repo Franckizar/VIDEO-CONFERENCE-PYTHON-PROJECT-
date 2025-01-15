@@ -4,14 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Host Meeting</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='created.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="{{ url_for('static', filename='meeting.js') }}" defer></script>
 </head>
 <body>
-    <h1>Host Meeting</h1>
-    <div class="container">
-        <video id="localVideo" autoplay muted playsinline></video>
-        <button id="startMeetingBtn">Start Meeting</button>
+    <div class="main-container">
+        <h1>Host Meeting</h1>
+        <div class="meeting-container">
+            <!-- Local video container (for the host) -->
+            <div class="local-video-container">
+                <video id="localVideo" autoplay muted playsinline></video>
+                <p>Your Video</p>
+            </div>
+
+            <!-- Remote video container (for the other participant) -->
+            <div class="remote-video-container">
+                <video id="remoteVideo" autoplay playsinline></video>
+                <p>Remote Video</p>
+            </div>
+
+            <!-- Start Meeting Button -->
+            <div class="meeting-buttons">
+                <button id="startMeetingBtn" class="btn btn-primary">Start Meeting</button>
+            </div>
+        </div>
     </div>
 </body>
 </html>

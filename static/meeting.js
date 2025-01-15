@@ -1,125 +1,163 @@
-// Request Permissions
-async function requestPermissions() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        // Stop the test stream after checking permissions
-        stream.getTracks().forEach(track => track.stop());
-        return true;
-    } catch (error) {
-        if (error.name === 'NotAllowedError') {
-            alert('Please allow camera and microphone access.');
-        } else {
-            console.error("Error requesting permissions:", error);
-            alert("An error occurred while requesting permissions.");
-        }
-        return false;
-    }
+const socket = io();
+
+// DOM Elements
+const localVideo = document.getElementById('localVideo');
+const remoteVideo = document.getElementById('remoteVideo');
+const startMeetingBtn = document.getElementById('startMeetingBtn');
+const joinMeetingBtn = document.getElementById('joinMeetingBtn');
+const hostIpInput = document.getElementById('hostIp');
+
+// WebRTC Configuration (with your TURN server credentials)
+const configuration = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com' },
+      { urls: 'stun:stun1.l.google.com' },
+      {
+        urls: 'turn:192.168.33.67:3478', // Replace with your actual TURN server address
+        username: 'franck', // Replace with your actual TURN username
+        credential: '12345' // Replace with your actual TURN password
+      }
+    ]
+  };
+
+let localStream;
+let peerConnection;
+let roomId;
+
+// Request media permissions and start local video
+async function setupLocalVideo() {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ 
+      video: true, 
+      audio: true 
+    });
+    localVideo.srcObject = localStream;
+    console.log("Local video and audio captured successfully."); 
+  } catch (err) {
+    console.error('Error accessing media devices:', err);
+    alert('Unable to access camera and microphone. Please check permissions.');
+  }
 }
 
-// Event Listeners for Meeting Buttons
-document.addEventListener('DOMContentLoaded', function () {
-    const startButton = document.getElementById('startMeetingBtn');
-    const joinButton = document.getElementById('joinMeetingBtn');
+// Initialize WebRTC peer connection
+function initializePeerConnection() {
+  peerConnection = new RTCPeerConnection(configuration);
 
-    if (startButton) {
-        startButton.addEventListener('click', async () => {
-            const hasPermissions = await requestPermissions();
-            if (hasPermissions) {
-                createOffer();
-            }
-        });
-    }
+  // Handle incoming remote tracks
+  peerConnection.ontrack = event => {
+    console.log('Received remote track:', event.streams[0]);
+    remoteVideo.srcObject = event.streams[0]; 
+  };
 
-    if (joinButton) {
-        joinButton.addEventListener('click', async () => {
-            const hasPermissions = await requestPermissions();
-            if (hasPermissions) {
-                joinMeeting();
-            }
-        });
-    }
-});
-
-// WebRTC Configuration
-const signalingServer = window.location.origin;
-const pc = new RTCPeerConnection({
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-});
-
-// Create Offer
-async function createOffer() {
-    try {
-        const constraints = { video: { facingMode: 'user' }, audio: true };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-        const localVideo = document.getElementById('localVideo');
-        if (localVideo) localVideo.srcObject = stream;
-
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        await fetch(`${signalingServer}/signal`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'offer', data: pc.localDescription })
-        });
-
-        console.log("Offer created and sent.");
-    } catch (error) {
-        console.error("Error creating offer:", error);
-        alert("Error accessing camera/microphone. Please ensure permissions are granted.");
-    }
-}
-
-// Join Meeting
-async function joinMeeting() {
-    try {
-        const response = await fetch(`${signalingServer}/getOffer`);
-        if (!response.ok) throw new Error("Failed to fetch offer.");
-
-        const { sdp, type } = await response.json();
-        const remoteDesc = new RTCSessionDescription({ sdp, type });
-        await pc.setRemoteDescription(remoteDesc);
-
-        const constraints = { video: { facingMode: 'user' }, audio: true };
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-        const remoteVideo = document.getElementById('remoteVideo');
-        if (remoteVideo) remoteVideo.srcObject = stream;
-
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        await fetch(`${signalingServer}/signal`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'answer', data: pc.localDescription })
-        });
-
-        console.log("Answer sent.");
-    } catch (error) {
-        console.error("Error joining meeting:", error);
-        alert("Error joining meeting. Please check permissions and try again.");
-    }
-}
-
-// ICE Candidate Handling
-pc.onicecandidate = (event) => {
+  // Handle and send ICE candidates
+  peerConnection.onicecandidate = event => {
     if (event.candidate) {
-        fetch(`${signalingServer}/signal`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'candidate', data: event.candidate })
-        }).catch(error => console.error("Error sending ICE candidate:", error));
+      console.log('Sending ICE candidate:', event.candidate);
+      socket.emit('candidate', {
+        room: roomId,
+        candidate: event.candidate
+      });
     }
-};
+  };
 
-// On Track Event
-pc.ontrack = (event) => {
-    const remoteVideo = document.getElementById('remoteVideo');
-    if (remoteVideo) remoteVideo.srcObject = event.streams[0];
+  // Add local tracks after connection established
+  peerConnection.addEventListener('connectionstatechange', () => {
+    if (peerConnection.connectionState === 'connected') {
+      console.log("Peer connection established.");
+      if (localStream) { 
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+        });
+      }
+    }
+  });
+}
+
+// Host meeting function
+async function hostMeeting() {
+  roomId = 'host-' + Math.random().toString(36).substr(2, 9);
+  await setupLocalVideo(); // Ensure local video is set up before initializing peer connection
+  initializePeerConnection();
+
+  socket.emit('create_room', { room: roomId, user: 'host' });
+  console.log('Created room:', roomId);
+  alert(`Share your host IP with participants to join the meeting.`);
+}
+
+// Join meeting function
+async function joinMeeting() {
+  const hostIp = hostIpInput.value.trim();
+  if (!hostIp) {
+    alert('Please enter a valid host IP address.');
+    return;
+  }
+
+  roomId = hostIp;
+  await setupLocalVideo(); // Ensure local video is set up before initializing peer connection
+  initializePeerConnection();
+
+  socket.emit('join_room', { room: roomId, user: 'participant' });
+
+  try {
+    const offer = await peerConnection.createOffer();
+    console.log('Sending offer:', offer);
+    await peerConnection.setLocalDescription(offer);
+    socket.emit('offer', { room: roomId, offer });
+  } catch (err) {
+    console.error('Error creating offer:', err);
+  }
+}
+
+// Socket.IO event handlers
+socket.on('offer', async data => {
+  console.log('Received offer:', data.offer);
+  try {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const answer = await peerConnection.createAnswer();
+    console.log('Sending answer:', answer);
+    await peerConnection.setLocalDescription(answer);
+    socket.emit('answer', { room: roomId, answer });
+  } catch (err) {
+    console.error('Error handling offer:', err);
+  }
+});
+
+socket.on('answer', async data => {
+  console.log('Received answer:', data.answer);
+  try {
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+  } catch (err) {
+    console.error('Error handling answer:', err);
+  }
+});
+
+socket.on('candidate', async data => {
+  console.log('Received ICE candidate:', data.candidate);
+  try {
+    await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+  } catch (err) {
+    console.error('Error adding ICE candidate:', err);
+  }
+});
+
+// Event listeners
+if (startMeetingBtn) {
+  startMeetingBtn.addEventListener('click', hostMeeting);
+}
+
+if (joinMeetingBtn) {
+  joinMeetingBtn.addEventListener('click', joinMeeting);
+}
+
+// Handle user leaving
+window.onbeforeunload = () => {
+  if (roomId) {
+    socket.emit('leave_room', { room: roomId });
+  }
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+  }
+  if (peerConnection) {
+    peerConnection.close();
+  }
 };
